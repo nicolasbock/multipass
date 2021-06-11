@@ -97,6 +97,10 @@ jobs:
                 ssh ${{ '${{SSH_OPTS}} "${{DEVICE_USER}}@${{DEVICE_IP}}" -- "${{@}}"' }}
               }}
 
+              function _copy() {{
+                scp ${{ '${{SSH_OPTS/-p/-P}} "$1" "${{DEVICE_USER}}@${{DEVICE_IP}}:$2"' }}
+              }}
+
               # Retry $1 times, with $2 seconds in between tries
               function _retry() {{
                   tries=$1
@@ -199,6 +203,18 @@ jobs:
               # Give multipassd time to settle (#1995)
               _retry 12 5 _run $MP exec primary -- uname -a
               _run $MP list
+
+              # Need to restart for mounts to come back (canonical/multipass#1674) and start if the restart fails
+              ${{ matrix.driver == 'lxd' }} && ( _run $MP restart primary || _run $MP start primary )
+
+              TMPPATH=$( mktemp )
+              TMPNAME=$( basename $TMPPATH )
+              TESTDATA="Test contents"
+              echo "$TESTDATA" > "$TMPPATH"
+
+              _copy "$TMPPATH" "$TMPNAME"
+              [ "$( _retry 12 5 _run $MP exec primary cat Home/$TMPNAME )" == "$TESTDATA" ]
+
               _run $MP delete --purge --all
 
               _run $MP launch --timeout 1200 --name test
