@@ -219,6 +219,9 @@ jobs:
               _copy "$TMPPATH" "$TMPNAME"
               [ "$( _retry 12 5 _run $MP exec primary cat Home/$TMPNAME )" == "$TESTDATA" ]
 
+              _run $MP transfer "primary:Home/$TMPNAME" $TMPNAME.tferd
+              [ "$( ${{ matrix.driver == 'Windows' && '_ps' || '_run' }} cat $TMPNAME.tferd )" == "$TESTDATA" ]
+
               _run $MP delete --purge --all
 
               _run $MP launch --timeout 1200 --name test
