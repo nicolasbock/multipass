@@ -248,9 +248,26 @@ jobs:
               _run $MP exec focal -- uname -a
               _run $MP delete --purge focal
 
-              _run $MP launch --timeout 1200 --name test
+              # Launch a handful of instances anew
+              _run $MP start --timeout 1200
               _run $MP list
-              _run $MP exec test -- uname -a
+              _run $MP exec primary -- uname -a
+              _run $MP delete --purge primary
+
+              _run $MP launch --timeout 1200 --name default
+              _run $MP list
+              _run $MP exec default -- uname -a
+              _run $MP delete --purge default
+
+              _run $MP launch --timeout 1200 --name bionic bionic
+              _run $MP list
+              _run $MP exec bionic -- uname -a
+              _run $MP delete --purge bionic
+
+              _run $MP launch --timeout 1200 --name focal focal
+              _run $MP list
+              _run $MP exec focal -- uname -a
+              _run $MP delete --purge focal
 
     - name: Submit the job
       id: submit
