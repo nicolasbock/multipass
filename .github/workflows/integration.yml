@@ -188,10 +188,19 @@ jobs:
               _retry_grep 12 5 "\w,lts\W" _run $MP find
               sleep 10
 
-              # Launch primary
-              _retry 36 5 _run $MP start
+              # Launch and stop a Bionic instance (retry until canonical/multipass#2025 and --timeout are stable)
+              ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP launch --name bionic bionic || true
+              _retry 36 5 _run $MP exec bionic -- uname -a
+              _run $MP stop bionic
 
-              _run $MP exec primary -- uname -a
+              # Launch and suspend a Focal instance (retry until canonical/multipass#2025 and --timeout are stable)
+              ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP launch --name focal focal || true
+              _retry 36 5 _run $MP exec focal -- uname -a
+              _run $MP ${{ contains('lxd hyperkit virtualbox', matrix.driver) && 'stop' || 'suspend' }} focal
+
+              # Launch primary
+              ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP start || true
+              _retry 36 5 _run $MP exec primary -- uname -a
 
               # Upgrade to the version under test
               if [ '${{ matrix.os }}' == 'Linux' ]; then
@@ -207,8 +216,10 @@ jobs:
               fi
 
               # Give multipassd time to settle (#1995)
-              _retry 12 5 _run $MP exec primary -- uname -a
-              _run $MP list
+              _retry 36 5 _run $MP exec primary -- uname -a
+              _run $MP list | grep "^bionic.*Stopped"
+              _run $MP list | grep "^focal.*${{ contains('lxd hyperkit virtualbox', matrix.driver) && 'Stopped' || 'Suspended' }}"
+              _run $MP list | grep "^primary.*Running"
 
               # Need to restart for mounts to come back (canonical/multipass#1674) and start if the restart fails
               ${{ matrix.driver == 'lxd' }} && ( _run $MP restart primary || _run $MP start primary )
@@ -225,7 +236,17 @@ jobs:
               _run $MP transfer "primary:Home/$TMPNAME" $TMPNAME.tferd
               [ "$( ${{ matrix.driver == 'Windows' && '_ps' || '_run' }} cat $TMPNAME.tferd )" == "$TESTDATA" ]
 
-              _run $MP delete --purge --all
+              _run $MP delete --purge primary
+
+              # Manually start previously stopped
+              _run $MP start --timeout 1200 bionic
+              _run $MP exec bionic -- uname -a
+              _run $MP delete --purge bionic
+
+              # Manually start previously suspended
+              _run $MP start --timeout 1200 focal
+              _run $MP exec focal -- uname -a
+              _run $MP delete --purge focal
 
               _run $MP launch --timeout 1200 --name test
               _run $MP list
