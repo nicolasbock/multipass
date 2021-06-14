@@ -130,11 +130,15 @@ jobs:
 
               # Log journal entries on bad exit
               function _exit() {{
+                set +e
                 RC=$?
-                if [ '${{ matrix.os }}' == 'Linux' ]; then
-                  [ $RC -eq 0 ] || _run sudo journalctl -u snap.multipass*
-                elif ${{ startsWith(matrix.os, 'macOS') }}; then
-                  [ $RC -eq 0 ] || _run sudo cat /Library/Logs/Multipass/multipassd.log
+                if [ $RC -ne 0 ]; then
+                  _run $MP info --all
+                  if [ '${{ matrix.os }}' == 'Linux' ]; then
+                    _run sudo journalctl -u snap.multipass*
+                  elif ${{ startsWith(matrix.os, 'macOS') }}; then
+                    _run sudo cat /Library/Logs/Multipass/multipassd.log
+                  fi
                 fi
               }}
               trap _exit EXIT
