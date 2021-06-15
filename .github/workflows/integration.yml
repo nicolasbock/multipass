@@ -128,10 +128,12 @@ jobs:
                   done
               }}
 
-              # Log journal entries on bad exit
+              # Clean up and log journal entries on bad exit
+              CLEANUP=()
               function _exit() {{
-                set +e
                 RC=$?
+                set +eu
+                rm -f ${{ '"${CLEANUP[@]}"' }}
                 if [ $RC -ne 0 ]; then
                   _run $MP info --all
                   if [ '${{ matrix.os }}' == 'Linux' ]; then
@@ -212,6 +214,7 @@ jobs:
               ${{ matrix.driver == 'lxd' }} && ( _run $MP restart primary || _run $MP start primary )
 
               TMPPATH=$( mktemp )
+              CLEANUP+=( $TMPPATH )
               TMPNAME=$( basename $TMPPATH )
               TESTDATA="Test contents"
               echo "$TESTDATA" > "$TMPPATH"
