@@ -52,8 +52,7 @@ jobs:
 
     runs-on: testflinger
 
-    # Windows is pretty slow unfortunately.
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     strategy:
       matrix: ${{ fromJSON(needs.GetMatrix.outputs.matrix) }}
@@ -190,17 +189,17 @@ jobs:
 
               # Launch and stop a Bionic instance (retry until canonical/multipass#2025 and --timeout are stable)
               ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP launch --name bionic bionic || true
-              _retry 36 5 _run $MP exec bionic -- uname -a
+              _retry 120 5 _run $MP exec bionic -- uname -a
               _run $MP stop bionic
 
               # Launch and suspend a Focal instance (retry until canonical/multipass#2025 and --timeout are stable)
               ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP launch --name focal focal || true
-              _retry 36 5 _run $MP exec focal -- uname -a
+              _retry 120 5 _run $MP exec focal -- uname -a
               _run $MP ${{ contains('lxd hyperkit virtualbox', matrix.driver) && 'stop' || 'suspend' }} focal
 
               # Launch primary
               ${{ contains('lxd qemu', matrix.driver) && '_retry 5 0 ' || '' }}_run $MP start || true
-              _retry 36 5 _run $MP exec primary -- uname -a
+              _retry 120 5 _run $MP exec primary -- uname -a
 
               # Upgrade to the version under test
               if [ '${{ matrix.os }}' == 'Linux' ]; then
