@@ -176,11 +176,10 @@ jobs:
                   _ps "Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All -NoRestart"
                   _ps "Restart-Computer -Force"
                   sleep 60
-
-                  _retry_grep 12 5 "\w,lts\W" _run $MP find
                 fi
               fi
 
+              _retry_grep 12 5 "\w,lts\W" _run $MP find
               ${{ matrix.os == 'Windows' && '_ps $MP' || '_run sudo $MP' }} set local.driver=${{ matrix.driver }}
 
               # Give multipassd time to settle (#1995)
