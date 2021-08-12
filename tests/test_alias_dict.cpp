@@ -281,11 +281,12 @@ TEST_P(DaemonAliasTestsuite, purge_removes_purged_instance_aliases)
     auto [commands, expected_output] = GetParam();
 
     auto mock_image_vault = std::make_unique<NaggyMock<mpt::MockVMImageVault>>();
+    auto mock_image_vault_ptr = mock_image_vault.get();
 
-    EXPECT_CALL(*mock_image_vault, remove(_)).WillRepeatedly(Return());
-    EXPECT_CALL(*mock_image_vault, fetch_image(_, _, _, _)).WillRepeatedly(Return(mp::VMImage{}));
-    EXPECT_CALL(*mock_image_vault, prune_expired_images()).WillRepeatedly(Return());
-    EXPECT_CALL(*mock_image_vault, has_record_for(_)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*mock_image_vault_ptr, remove(_)).WillRepeatedly(Return());
+    EXPECT_CALL(*mock_image_vault_ptr, fetch_image(_, _, _, _)).WillRepeatedly(Return(mp::VMImage{}));
+    EXPECT_CALL(*mock_image_vault_ptr, prune_expired_images()).WillRepeatedly(Return());
+    EXPECT_CALL(*mock_image_vault_ptr, has_record_for(_)).WillRepeatedly(Return(true));
 
     config_builder.vault = std::move(mock_image_vault);
 
@@ -293,28 +294,19 @@ TEST_P(DaemonAliasTestsuite, purge_removes_purged_instance_aliases)
 
     populate_db_file(AliasesVector{{"lsp", {"primary", "ls"}}, {"lsz", {"real-zebraphant", "ls"}}});
 
-    mpt::TempDir temp_dir;
-    QString filename(temp_dir.path() + "/multipassd-vm-instances.json");
+    QString filename(fake_alias_dir.path() + "/multipassd-vm-instances.json");
 
     mpt::make_file_with_content(filename, json_contents);
 
     // Make the daemon look for the JSON on our temporary directory. It will read the contents of the file.
-    config_builder.data_directory = temp_dir.path();
+    config_builder.data_directory = fake_alias_dir.path();
+
     mp::Daemon daemon{config_builder.build()};
-
-    std::stringstream stream;
-    send_command({"list", "--format", "csv"}, stream);
-    EXPECT_THAT(stream.str(), HasSubstr("primary"));
-    EXPECT_THAT(stream.str(), HasSubstr("real-zebraphant"));
-
-    stream.str({});
-    send_command({"aliases", "--format", "csv"}, stream);
-    EXPECT_EQ(stream.str(), "Alias,Instance,Command\nlsp,primary,ls\nlsz,real-zebraphant,ls\n");
 
     for (const auto& command : commands)
         send_command(command);
 
-    stream.str({});
+    std::stringstream stream;
     send_command({"aliases", "--format", "csv"}, stream);
     EXPECT_EQ(stream.str(), expected_output);
 }
